@@ -1,0 +1,308 @@
+version: "3.9"
+
+services:
+  gateway:
+    build:
+      dockerfile: "${GATEWAY_DOCKER}"
+      context: "./services/gateway"
+    container_name: "gateway"
+    ports:
+      - "${GATEWAY_PORT}:${GATEWAY_PORT}"
+      - "${GATEWAY_GRPC_PORT}:${GATEWAY_GRPC_PORT}"
+    env_file:
+      - "./services/gateway/.env"
+    environment:
+      PORT: "${GATEWAY_PORT}"
+      GRPC_PORT: "${GATEWAY_GRPC_PORT}"
+      METRICS_PORT: "${GATEWAY_METRICS_PORT}"
+      AUTH_URL: "auth:${AUTH_PORT}"
+      USERS_URL: "users:${USERS_PORT}"
+      MESSENGER_URL: "messenger:${MESSENGER_PORT}"
+    volumes:
+      - "gateway:/app"
+    restart: unless-stopped
+    labels:
+      co.elastic.logs/enabled: true
+      co.elastic.logs/json.keys_under_root: true
+      co.elastic.logs/json.overwrite_keys: true
+      co.elastic.logs/json.add_error_key: true
+      co.elastic.logs/json.expand_keys: true
+    depends_on:
+      - auth
+      - messenger
+      - users
+    networks:
+      - default
+
+  messenger:
+    build:
+      dockerfile: "${MESSENGER_DOCKER}"
+      context: "./services/messenger"
+    container_name: "messenger"
+    expose:
+      - "${MESSENGER_PORT}"
+      - "${MESSENGER_METRICS_PORT}"
+    env_file:
+      - "./services/messenger/.env"
+    environment:
+      PORT: "${MESSENGER_PORT}"
+      METRICS_PORT: "${MESSENGER_METRICS_PORT}"
+      DB_URL: "${MESSENGER_DB_SCHEMA}://${MESSENGER_DB_USER}:${MESSENGER_DB_PASSWORD}@messenger_db:${MESSENGER_DB_PORT}/${MESSENGER_DB_NAME}?sslmode=disable"
+      REDIS_URL: "messenger_redis:${MESSENGER_REDIS_PORT}"
+      USERS_URL: "users:${USERS_PORT}"
+    volumes:
+      - "messenger:/app"
+    restart: unless-stopped
+    labels:
+      co.elastic.logs/enabled: true
+      co.elastic.logs/json.keys_under_root: true
+      co.elastic.logs/json.overwrite_keys: true
+      co.elastic.logs/json.add_error_key: true
+      co.elastic.logs/json.expand_keys: true
+    depends_on:
+      - messenger_redis
+      - messenger_db
+      - users
+    networks:
+      - default
+
+  auth:
+    build:
+      dockerfile: "${AUTH_DOCKER}"
+      context: "./services/auth"
+    container_name: "auth"
+    expose:
+      - "${AUTH_PORT}"
+      - "${AUTH_METRICS_PORT}"
+    env_file:
+      - "./services/auth/.env"
+    environment:
+      PORT: "${AUTH_PORT}"
+      METRICS_PORT: "${AUTH_METRICS_PORT}"
+      REDIS_URL: "auth_redis:${AUTH_REDIS_PORT}"
+      USERS_URL: "users:${USERS_PORT}"
+    volumes:
+      - "auth:/app"
+    restart: unless-stopped
+    labels:
+      co.elastic.logs/enabled: true
+      co.elastic.logs/json.keys_under_root: true
+      co.elastic.logs/json.overwrite_keys: true
+      co.elastic.logs/json.add_error_key: true
+      co.elastic.logs/json.expand_keys: true
+    depends_on:
+      - auth_redis
+      - users
+    networks:
+      - default
+
+  users:
+    build:
+      dockerfile: "${USERS_DOCKER}"
+      context: "./services/users"
+    container_name: "users"
+    expose:
+      - "${USERS_PORT}"
+      - "${USERS_METRICS_PORT}"
+    env_file:
+      - "./services/users/.env"
+    environment:
+      PORT: "${USERS_PORT}"
+      METRICS_PORT: "${USERS_METRICS_PORT}"
+      DB_URL: "${USERS_DB_SCHEMA}://${USERS_DB_USER}:${USERS_DB_PASSWORD}@USERS_db:${USERS_DB_PORT}/${USERS_DB_NAME}?sslmode=disable"
+    volumes:
+      - "users:/app"
+    restart: unless-stopped
+    labels:
+      co.elastic.logs/enabled: true
+      co.elastic.logs/json.keys_under_root: true
+      co.elastic.logs/json.overwrite_keys: true
+      co.elastic.logs/json.add_error_key: true
+      co.elastic.logs/json.expand_keys: true
+    depends_on:
+      - users_db
+    networks:
+      - default
+
+  messenger_db:
+    image: postgres:${POSTGRES_TAG}
+    container_name: ${MESSENGER_DB_HOST}
+    ports:
+      - "${MESSENGER_DB_PORT}:${MESSENGER_DB_PORT}"
+    command: "-p ${MESSENGER_DB_PORT}"
+    environment:
+      POSTGRES_USER: "${MESSENGER_DB_USER}"
+      POSTGRES_PASSWORD: "${MESSENGER_DB_PASSWORD}"
+      POSTGRES_DB: "${MESSENGER_DB_NAME}"
+      PGDATA: "/var/lib/postgresql/data/pgdata"
+      TZ: "${TZ}"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${MESSENGER_DB_USER} -d ${MESSENGER_DB_NAME}"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+    volumes:
+      - "messenger_db:/var/lib/postgresql/data"
+    restart: unless-stopped
+    networks:
+      - default
+
+  messenger_redis:
+    image: "redis:${REDIS_TAG}"
+    container_name: "messenger_redis"
+    expose:
+      - "${MESSENGER_REDIS_PORT}"
+    command: "--port ${MESSENGER_REDIS_PORT}"
+    volumes:
+      - "messenger_redis:/data"
+    restart: unless-stopped
+    networks:
+      - default
+
+  auth_redis:
+    image: "redis:${REDIS_TAG}"
+    container_name: "auth_redis"
+    expose:
+      - "${AUTH_REDIS_PORT}"
+    command: "--port ${AUTH_REDIS_PORT}"
+    volumes:
+      - "auth_redis:/data"
+    restart: unless-stopped
+    networks:
+      - default
+
+  users_db:
+    image: postgres:${POSTGRES_TAG}
+    container_name: ${USERS_DB_HOST}
+    ports:
+      - "${USERS_DB_PORT}:${USERS_DB_PORT}"
+    command: "-p ${USERS_DB_PORT}"
+    environment:
+      POSTGRES_USER: "${USERS_DB_USER}"
+      POSTGRES_PASSWORD: "${USERS_DB_PASSWORD}"
+      POSTGRES_DB: "${USERS_DB_NAME}"
+      PGDATA: "/var/lib/postgresql/data/pgdata"
+      TZ: "${TZ}"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready -U ${USERS_DB_USER} -d ${USERS_DB_NAME}"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+    volumes:
+      - "users_db:/var/lib/postgresql/data"
+    restart: unless-stopped
+    networks:
+      - default
+
+  filebeat:
+    image: docker.elastic.co/beats/filebeat:${FILEBEAT_TAG}
+    container_name: "filebeat"
+    environment:
+      - ELASTICSEARCH_HOSTS=https://elasticsearch:${ELASTICSEARCH_PORT}
+      - ELASTICSEARCH_USERNAME=elastic
+      - ELASTICSEARCH_PASSWORD=${ELASTICSEARCH_PASSWORD}
+    user: root
+    command: filebeat -e -strict.perms=false
+    volumes:
+      - "/var/lib/docker/containers:/var/lib/docker/containers:ro"
+      - "/var/run/docker.sock:/var/run/docker.sock:ro"
+      - "./configs/filebeat.yml:/usr/share/filebeat/filebeat.yml"
+    restart: unless-stopped
+    labels:
+      co.elastic.logs/enabled: false
+    networks:
+      - default
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:${ELASTICSEARCH_TAG}
+    container_name: "elasticsearch"
+    environment:
+      - bootstrap.memory_lock=true
+      - discovery.type=single-node
+      - xpack.security.enabled=true
+      - ELASTIC_PASSWORD=${ELASTICSEARCH_PASSWORD}
+    ports:
+      - ${ELASTICSEARCH_PORT}:${ELASTICSEARCH_PORT}
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    restart: unless-stopped
+    labels:
+      co.elastic.logs/enabled: false
+    networks:
+      - default
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:${KIBANA_TAG}
+    container_name: "kibana"
+    environment:
+      - ELASTICSEARCH_URL=http://elasticsearch:${ELASTICSEARCH_PORT}
+      - ELASTICSEARCH_USERNAME=elastic
+      - ELASTICSEARCH_PASSWORD=${ELASTICSEARCH_PASSWORD}
+      - xpack.security.user=elastic
+    ports:
+      - ${KIBANA_PORT}:${KIBANA_PORT}
+    volumes:
+      - "kibana_data:/usr/share/kibana/data"
+    restart: unless-stopped
+    depends_on:
+      - elasticsearch
+    labels:
+      co.elastic.logs/enabled: false
+    networks:
+      - default
+
+  prometheus:
+    image: prom/prometheus
+    container_name: "prometheus"
+    ports:
+      - ${PROMETHEUS_PORT}:${PROMETHEUS_PORT}
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    volumes:
+      - "./configs/prometheus.yml:/etc/prometheus/prometheus.yml"
+    restart: unless-stopped
+    networks:
+      - default
+
+  grafana:
+    image: grafana/grafana
+    container_name: "grafana"
+    ports:
+      - ${GRAFANA_PORT}:${GRAFANA_PORT}
+    volumes:
+      - "grafana_data:/var/lib/grafana"
+    restart: unless-stopped
+    networks:
+      - default
+
+volumes:
+  gateway:
+  messenger:
+  messenger_db:
+  messenger_redis:
+  auth:
+  auth_redis:
+  users:
+  users_db:
+  kibana_data:
+  grafana_data:
+
+
+networks:
+  default:
+    external: false

@@ -1,0 +1,136 @@
+syntax = "proto3";
+
+package api.messenger;
+
+import "api/messenger/dialog.proto";
+import "api/messenger/message.proto";
+import "api/messenger/peer.proto";
+import "api/users/user.proto";
+import "google/api/annotations.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "messenger.api/v*/go/api";
+
+service Messenger {
+  rpc SendMessage(SendMessageRequest) returns (SendMessageResponse){
+    option (google.api.http) = {
+      post: "/api/v1/messenger/send"
+      body: "*"
+    };
+  };
+
+  rpc ReadMessage(ReadMessageRequest) returns (ReadMessageResponse){
+    option (google.api.http) = {
+      post: "/api/v1/messenger/read"
+      body: "*"
+    };
+  };
+
+  rpc GetDialog(GetDialogRequest) returns (GetDialogResponse){
+    option (google.api.http) = {
+      get: "/api/v1/messenger/dialog"
+    };
+  };
+
+  rpc GetDialogs(GetDialogsRequest) returns (GetDialogsResponse){
+    option (google.api.http) = {
+      get: "/api/v1/messenger/dialogs"
+    };
+  };
+
+  rpc GetMessages(GetMessagesRequest) returns (GetMessagesResponse){
+    option (google.api.http) = {
+      get: "/api/v1/messenger/messages"
+    };
+  };
+
+  rpc GetUnreadDialogsCounter(GetUnreadDialogsCounterRequest) returns (GetUnreadDialogsCounterResponse){
+    option (google.api.http) = {
+      get: "/api/v1/messenger/unread-dialogs-counter"
+    };
+  };
+}
+
+message SendMessageRequest {
+  string message = 1;
+  api.messenger.Peer peer = 2;
+}
+
+message SendMessageResponse {
+  oneof response {
+    api.messenger.Message message = 1;
+  }
+}
+
+message ReadMessageRequest {
+  api.messenger.Peer peer = 1;
+  string last_id = 2;
+}
+
+message ReadMessageResponse {
+
+}
+
+message GetDialogRequest {
+  api.messenger.Peer peer = 1;
+}
+
+message GetDialogResponse {
+  api.messenger.Dialog dialog = 1;
+  optional api.messenger.Message last_message = 2;
+  optional api.users.User user = 3;
+}
+
+message GetDialogsRequest {
+  google.protobuf.Timestamp offset_date = 1;
+  int32 limit = 2;
+}
+
+message GetDialogsResponse {
+  oneof dialogs {
+    DialogsNotModified not_modified = 1;
+    DialogsSlice slice = 2;
+  }
+}
+
+message DialogsNotModified {
+  int32 total = 1;
+}
+
+message DialogsSlice {
+  int32 total = 1;
+  repeated api.messenger.Dialog dialogs = 2;
+  repeated api.messenger.Message messages = 3;
+  repeated api.users.User users = 4;
+}
+
+message GetMessagesRequest {
+  api.messenger.Peer peer = 1;
+  optional string offset_id = 2;
+  int32 limit = 3;
+}
+
+message GetMessagesResponse {
+  oneof messages {
+    MessagesNotModified not_modified = 1;
+    MessagesSlice slice = 2;
+  }
+}
+
+message MessagesNotModified {
+  int32 total = 1;
+}
+
+message MessagesSlice {
+  int32 total = 1;
+  repeated api.messenger.Message messages = 2;
+  repeated api.users.User users = 3;
+}
+
+message GetUnreadDialogsCounterRequest {
+
+}
+
+message GetUnreadDialogsCounterResponse {
+  int32 count = 1;
+}

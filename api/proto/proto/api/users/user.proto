@@ -1,0 +1,12 @@
+syntax = "proto3";
+
+package api.users;
+
+option go_package = "messenger.api/v*/go/api";
+
+message User {
+  string id = 1;
+  string username = 2;
+  optional string first_name = 3;
+  optional string last_name = 4;
+}

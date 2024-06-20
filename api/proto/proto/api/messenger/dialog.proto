@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package api.messenger;
+
+import "api/messenger/peer.proto";
+
+option go_package = "messenger.api/v*/go/api";
+
+message Dialog {
+  api.messenger.Peer peer = 1;
+  string last_message_id = 2;
+  optional string read_inbox_last_message_id = 3;
+  optional string read_outbox_last_message_id = 4;
+  int32 unread_count = 5;
+}

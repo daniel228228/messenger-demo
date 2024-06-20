@@ -1,0 +1,23 @@
+syntax = "proto3";
+
+package api.messenger;
+
+import "api/messenger/peer.proto";
+import "google/protobuf/timestamp.proto";
+
+option go_package = "messenger.api/v*/go/api";
+
+message Message {
+  oneof message {
+    PeerMessage peer_message = 1;
+  }
+}
+
+message PeerMessage {
+  string id = 1;
+  google.protobuf.Timestamp date = 2;
+  string message = 3;
+  api.messenger.Peer peer = 4;
+  bool outgoing = 5;
+  api.messenger.Peer from_peer = 6;
+}

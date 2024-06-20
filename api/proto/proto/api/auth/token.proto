@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package api.auth;
+
+option go_package = "messenger.api/v*/go/api";
+
+message Token {
+  string access_token = 1;
+  string refresh_token = 2;
+  int32 expires_in = 3;
+}

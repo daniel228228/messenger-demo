@@ -1,0 +1,24 @@
+filebeat.autodiscover:
+  providers:
+    - type: docker
+      hints.enabled: true
+      hints.default_config.enabled: false
+
+  processors:
+    - add_docker_metadata: ~
+    # - decode_json_fields:
+    #     fields: log
+    #     overwrite_keys: true
+
+  containers:
+    path: "/var/lib/docker/containers"
+    stream: "all"
+    ids:
+      - "*"
+
+output.elasticsearch:
+  hosts: [
+    "elasticsearch:9200"
+  ]
+  username: "elastic"
+  password: "qwerty"

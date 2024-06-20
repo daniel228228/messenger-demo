@@ -1,0 +1,8 @@
+**/.git
+**/.dockerignore
+**/bin
+
+**/*.http
+
+**/.vscode
+**/.idea

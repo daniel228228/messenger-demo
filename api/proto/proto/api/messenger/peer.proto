@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package api.messenger;
+
+option go_package = "messenger.api/v*/go/api";
+
+message Peer {
+  oneof peer {
+    PeerUser user = 1;
+  }
+}
+
+message PeerUser {
+  string user_id = 1;
+}
